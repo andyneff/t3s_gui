@@ -33,12 +33,16 @@ class T3sApp(tk.Tk):
     self.clip_max = tk.DoubleVar()
     self.clip_max_percent = tk.BooleanVar()
     self.gamma = tk.DoubleVar()
+    self.irc_username = tk.StringVar()
+    self.irc_oauth = tk.StringVar()
 
     self.colormap.trace_add('write', self.update_colormap)
     self.colormap_reverse.trace_add('write', self.update_colormap)
     self.clip_min.trace_add('write', self.update_clip_min)
     self.clip_max.trace_add('write', self.update_clip_max)
     self.gamma.trace_add('write', self.update_gamma)
+    self.irc_username.trace_add('write', self.update_irc)
+    self.irc_oauth.trace_add('write', self.update_irc)
 
     self.data = {}
     self.load()
@@ -90,6 +94,20 @@ class T3sApp(tk.Tk):
     self.gamma_entry = tk.ttk.Entry(frame, width=10, textvariable=self.gamma)
     self.gamma_entry.pack(side='left')
 
+    frame = tk.ttk.Frame(self)
+    frame.pack()
+    tk.Label(frame, text="IRC Username").pack(side='left')
+    self.irc_username_entry = tk.ttk.Entry(frame,
+                                           textvariable=self.irc_username)
+    self.irc_username_entry.pack(side='left')
+
+    frame = tk.ttk.Frame(self)
+    frame.pack()
+    tk.Label(frame, text="IRC OAuth").pack(side='left')
+    self.irc_oauth_entry = tk.ttk.Entry(frame, show='*',
+                                        textvariable=self.irc_oauth)
+    self.irc_oauth_entry.pack(side='left')
+
     self.bind('<Return>', self.return_handler)
     self.bind('<Escape>', self.esc_handler)
 
@@ -129,11 +147,18 @@ class T3sApp(tk.Tk):
     self.data['clip_max_percent'] = data
     self.update_clip_max()
 
+  def update_irc(self, var=None, idx=None, mode=None):
+    self.data['irc_username'] = self.irc_username.get()
+    self.data['irc_oauth'] = self.irc_oauth.get()
+    if self.data['irc_oauth'] and self.data['irc_username']:
+      pass
+
   def update(self):
     self.update_clip_min_percent(self.clip_min_percent.get())
     self.update_clip_max_percent(self.clip_max_percent.get())
     self.update_colormap()
     self.update_gamma()
+    self.update_irc()
 
   def destroy(self, *args, **kwargs):
     try:
@@ -162,6 +187,9 @@ class T3sApp(tk.Tk):
     self.clip_max.set(options.get('clip_max', 0.04))
     self.clip_max_percent.set(options.get('clip_max_percent', True))
     self.gamma.set(options.get('gamma', 2.2))
+
+    self.irc_username.set(options.get('irc_username', ''))
+    self.irc_oauth.set(options.get('irc_oauth', ''))
 
     self.update()
 

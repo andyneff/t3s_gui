@@ -55,29 +55,39 @@ class T3sCamera:
           if self.data['clip_min_percent']:
             clip_min = np.clip(self.data['clip_min'], 0, 1) * 112128.0
             dra_min = next((idx for idx, val in np.ndenumerate(cdf) if val > clip_min))[0] - 1
-            print(f'{clip_min} @ {cdf[dra_min-1:dra_min+1]}')
+            # i1 = np.clip(dra_min-5, 0, len(cdf))
+            # i2 = np.clip(dra_min+5, 0, len(cdf))
+
+            # print(f'{clip_min} @ {cdf[i1:dra_min]/112128.0} |{cdf[dra_min]/112128.0}| {cdf[dra_min+1:i2]/112128.0}')
+            # # print(f'Min {frame_min} -> {dra_min}')
+
             dra_min += frame_min
-            print(f'Min {frame_min} -> {dra_min}')
-            frame_min = max(dra_min, frame_min)
+
+            # frame_min = max(dra_min, frame_min)
 
           if self.data['clip_max_percent']:
             clip_max = (1-np.clip(self.data['clip_max'], 0, 1)) * 112128.0
             try:
-              dra_max = next((idx for idx, val in np.ndenumerate(np.flip(cdf)) if val < clip_max))[0] + 1
+              dra_max = next((idx for idx, val in np.ndenumerate(np.flip(cdf)) if val < clip_max))[0]
             except StopIteration:
               dra_max = 0
-            dra_max += frame_max
-            print(f'Max {frame_max} -> {dra_max}')
-            frame_max = min(dra_max, frame_max)
+            dra_max = len(cdf) - dra_max - 1
+
+            i1 = np.clip(dra_max-5, 0, len(cdf))
+            i2 = np.clip(dra_max+5, 0, len(cdf))
+            print(f'{clip_max} @ {cdf[i1:dra_max]/112128.0} |{cdf[dra_max]/112128.0}| {cdf[dra_max+1:i2]/112128.0}')
+
+            dra_max += frame_min
 
           # Just sanity check
-          frame_max = max(frame_min+1, frame_max)
+          dra_max = max(dra_min+1, dra_max)
+          print(f'{frame_min}-{frame_max} : {dra_min}-{dra_max}')
 
           frame = frame.astype(np.float32)
 
           # Sketchy auto-exposure
-          frame -= frame_min
-          frame /= frame_max
+          frame -= dra_min
+          frame /= (dra_max-dra_min)
           frame = np.clip(frame, 0, 1)
           if self.data['gamma'] != 1:
             frame = frame ** (1/self.data['gamma'])

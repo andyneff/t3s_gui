@@ -27,7 +27,7 @@ class T3sApp(tk.Tk):
     self.title('T3S')
 
     colormaps = [x for x in plt.colormaps() if not x.endswith('_r')]
-    favorite_colormaps = ['gray', 'jet', 'hsv']
+    favorite_colormaps = ['gray', 'jet', 'hsv', 'gnuplot2']
     colormaps = favorite_colormaps + [x for x in colormaps if x not in favorite_colormaps]
 
     self.colormap = tk.StringVar()

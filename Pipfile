@@ -6,14 +6,10 @@ verify_ssl = true
 [dev-packages]
 
 [packages]
-pygrabber = "*"
-matplotlib = "*"
-comtypes = "==1.1.7"
-numpy = "==1.17.3"
-opencv-python = "==4.1.1.26"
-ipython = "*"
-jupyterlab = "*"
 pyvirtualcam = "*"
+numpy = "*"
+matplotlib = "*"
+opencv-python = "*"
 
 [requires]
 python_version = "3.7"

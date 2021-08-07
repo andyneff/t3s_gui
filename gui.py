@@ -13,8 +13,7 @@ logger = logging.getLogger(__name__)
 import matplotlib.pyplot as plt
 
 from t3s import T3sCamera
-from twitch import The1OutOf0
-
+from twitch import IrcBot
 
 class T3sApp(tk.Tk):
   def __init__(self):
@@ -129,7 +128,7 @@ class T3sApp(tk.Tk):
     self.cam.start_capture()
 
     if self.data['irc_channel'] and self.data['irc_username'] and self.data['irc_oauth']:
-      self.irc = The1OutOf0(self.data)
+      self.irc = IrcBot(self.data)
       self.irc.spawn()
 
   def esc_handler(self, event):
@@ -204,7 +203,10 @@ class T3sApp(tk.Tk):
       with open(self.config_file, 'r') as fid:
         options = json.load(fid)
 
-    self.colormap.set(options.get('colormap', 'gray'))
+    colormap = options.get('colormap', 'gray')
+    if colormap not in plt.colormaps():
+      colormap = 'gray'
+    self.colormap.set(colormap)
     self.colormap_reverse.set(options.get('colormap_reverse', False))
     self.clip_min.set(options.get('clip_min', 0.04))
     self.clip_min_percent.set(options.get('clip_min_percent', True))

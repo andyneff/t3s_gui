@@ -1,5 +1,7 @@
 import threading
 from subprocess import Popen
+from functools import partial
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -14,7 +16,27 @@ def is_command(message, commands=[], required_argument=False):
       return True
   return False
 
-class The1OutOf0(irc.bot.SingleServerIRCBot):
+# def cat_maps(*args):
+#   cat_segment_data = {'red': (), 'blue': (), 'green': ()}
+#   offset = 0
+#   for arg in args:
+#     segment_data = cm.get_cmap(arg)._segmentdata
+#     for color in ['red', 'blue', 'green']:
+#       cat_segment_data[color] = cat_segment_data[color] + tuple(((x[0]+offset)/len(args), x[1], x[2]) for x in segment_data[color])
+#     offset+=1
+#   return LinearSegmentedColormap('custom', cat_segment_data)
+
+def cat_maps(map_name, *args):
+  def band(points, color):
+    idx = (int(x*len(args)) if x != 1 else len(args)-1 for x in points)
+    return [colormaps[i](x*len(args) - i)[color] for x,i in zip(points, idx)]
+  colormaps=[cm.get_cmap(x) for x in args]
+  cat_segment_data = {'red': partial(band, color=0),
+                      'green': partial(band, color=1),
+                      'blue': partial(band, color=2)}
+  return LinearSegmentedColormap(map_name, cat_segment_data)
+
+class IrcBot(irc.bot.SingleServerIRCBot):
   def __init__(self, config):
     self.config = config
 
@@ -70,32 +92,13 @@ class The1OutOf0(irc.bot.SingleServerIRCBot):
 
         if colormap in colormaps:
           if len(parsed) > 2:
-            if len(parsed) > 100:
+            if len(parsed) > 100 or 'custom' in parsed:
               # max to prevent someone trying to eat my RAM
               # auto Ban?
               return
-
-            cat_segment_data = {'red': (), 'blue': (), 'green': ()}
-            offset = 0
-            for next_colormap in parsed[1:]:
-              if next_colormap not in colormaps:
-                return
-              if next_colormap == 'the1outof0':
-                # Auto ban?
-                return
-
-              segment_data = cm.get_cmap(next_colormap)._segmentdata
-              for color in ['red', 'blue', 'green']:
-                cat_segment_data[color] += tuple(((x[0]+offset)/(len(parsed)-1),
-                                                   x[1],
-                                                   x[2])
-                                                  for x in segment_data[color])
-              offset+=1
-
-            custom = LinearSegmentedColormap('the1outof0',
-                                             segmentdata=cat_segment_data)
+            colormap = 'custom'
+            custom = cat_maps(colormap, *parsed[1:])
             cm.register_cmap(cmap=custom)
-            colormap = 'the1outof0'
             message = f'Changing colormap to a custom colormap'
           else:
             message = f'Changing colormap to {colormap}'
@@ -117,7 +120,7 @@ if __name__ == '__main__':
   import json, os, signal
   with open(os.path.expanduser('~/.config/t3s_gui.json'), 'r') as fid:
     config = json.load(fid)
-  bot = The1OutOf0(config)
+  bot = IrcBot(config)
 
   def ctrl_c(signum, frame):
     logger.info(f"Disconnecting IRC")

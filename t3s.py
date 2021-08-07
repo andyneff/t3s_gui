@@ -48,11 +48,11 @@ class T3sCamera:
     cap.set(cv2.CAP_PROP_ZOOM, 0x8004)
 
     # cap.read()
-    with pyvirtualcam.Camera(width=384, height=288, fps=25, print_fps=True) as cam:
+    with pyvirtualcam.Camera(width=384, height=288, fps=25) as cam:
       logger.debug(f'Using virtual camera: {cam.device}')
       frame = np.zeros((cam.height, cam.width, 3), np.uint8)  # RGB
 
-      t0 = time.time()-9
+      t0 = time.time()-29
 
       while self.running:
         try:
@@ -115,6 +115,12 @@ class T3sCamera:
           frame = cm.ScalarMappable(cmap=self.data['colormap']).to_rgba(frame, bytes=True)
 
           cam.send(frame[:,:,0:3])
+
+          t1 = time.time()
+          if t1 - t0 > 30:
+            logger.info(f'{cam.current_fps:.1f} fps')
+            t0 = t1
+
           # This isn't needed, the read takes care of this
           # cam.sleep_until_next_frame()
         except:
@@ -132,7 +138,7 @@ class T3sCamera:
     self.running = False
     self.camera_thread.join(1)
     if self.camera_thread.is_alive():
-      logging.error('Thread did not end')
+      logging.error('T3S thread did not end')
 
 def test_cam():
   import signal

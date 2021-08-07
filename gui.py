@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 import matplotlib.pyplot as plt
 
 from t3s import T3sCamera
+from twitch import The1OutOf0
+
 
 class T3sApp(tk.Tk):
   def __init__(self):
@@ -127,7 +129,8 @@ class T3sApp(tk.Tk):
     self.cam.start_capture()
 
     if self.data['irc_channel'] and self.data['irc_username'] and self.data['irc_oauth']:
-      pass
+      self.irc = The1OutOf0(self.data)
+      self.irc.spawn()
 
   def esc_handler(self, event):
     self.destroy()
@@ -186,6 +189,8 @@ class T3sApp(tk.Tk):
       logger.critical('Failed to save')
       logger.critical(traceback.format_exc())
     self.cam.stop_capture()
+    if self.irc:
+      self.irc.unspawn()
     return super().destroy(*args, **kwargs)
 
   def save(self):
@@ -214,7 +219,7 @@ class T3sApp(tk.Tk):
     self.update()
 
 if __name__ == "__main__":
-  logging.basicConfig(level=logging.WARNING)
+  logging.basicConfig(level=logging.DEBUG)
   # test_cam()
   app = T3sApp()
   app.mainloop()

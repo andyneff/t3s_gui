@@ -62,8 +62,6 @@ class T3sCamera:
 
             i1 = np.clip(frame_max-5, 0, len(cdf))
             i2 = np.clip(frame_max+5, 0, len(cdf))
-            print(f'{frame_max} @ {cdf[i1:frame_max]/112128.0} |{cdf[frame_max]/112128.0}| {cdf[frame_max+1:i2]/112128.0}')
-            # print(f'Max {frame_min} -> {frame_max}')
 
             frame_max += frame_min
 
@@ -74,11 +72,6 @@ class T3sCamera:
               clip_min = next((idx for idx, val in np.ndenumerate(cdf) if val > clip_min))[0] - 1
             except StopIteration:
               clip_min = len(cdf) - 1
-
-            # i1 = np.clip(clip_min-5, 0, len(cdf))
-            # i2 = np.clip(clip_min+5, 0, len(cdf))
-            # print(f'{clip_min} @ {cdf[i1:clip_min]/112128.0} |{cdf[clip_min]/112128.0}| {cdf[clip_min+1:i2]/112128.0}')
-            # # print(f'Min {frame_min} -> {clip_min}')
 
             frame_min += clip_min
 

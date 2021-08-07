@@ -11,41 +11,55 @@ import cv2
 from matplotlib import cm
 
 def dra_frame(frame, min=None, max=None):
+  frame_min = frame.min()
+  frame_max = frame.max()
+
   histogram, bin_edges = np.histogram(frame, bins=range(frame_min, frame_max+2))
   cdf = np.cumsum(histogram)
 
-  # Process max before min, cause it uses frame_min
-  if max is not None:
-    frame_max = (1-np.clip(max, 0, 1)) * 112128.0
-    try:
-      frame_max = next((idx for idx, val in np.ndenumerate(np.flip(cdf)) if val < frame_max))[0]
-    except StopIteration:
-      frame_max = len(cdf) - 1
-    frame_max = len(cdf) - frame_max - 1
-    frame_max += frame_min
-
-    self.dra_frame_max = frame_max
-
   if min is not None:
-    clip_min = np.clip(min, 0, 1) * frame.size
+    dra_min = np.clip(min, 0, 1) * frame.size
     try:
-      clip_min = next((idx for idx, val in np.ndenumerate(cdf) if val > clip_min))[0] - 1
+      dra_min = next((idx for idx, val in np.ndenumerate(cdf) if val > dra_min))[0] - 1
     except StopIteration:
-      clip_min = len(cdf) - 1
-    frame_min += clip_min
+      dra_min = len(cdf) - 1
+    dra_min += frame_min
+  else:
+    dra_min = frame_min
 
-    self.dra_frame_min = frame_min
+  if max is not None:
+    dra_max = (1-np.clip(max, 0, 1)) * frame.size
+    try:
+      dra_max = next((idx for idx, val in np.ndenumerate(np.flip(cdf)) if val < dra_max))[0]
+    except StopIteration:
+      dra_max = len(cdf) - 1
+    dra_max = len(cdf) - dra_max - 1
+    dra_max += frame_min
+  else:
+    dra_max = frame_max
 
+  return (dra_min, dra_max)
 
 class T3sCamera:
-  def __init__(self, data={}):
+  def __init__(self, data={}, camera_index=0, capture_mode=0x8004):
     self.data = data
 
-  def camera_capture(self):
-    cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
+    self.cap = cv2.VideoCapture(camera_index)
+    self.cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
     # Use raw mode
-    cap.set(cv2.CAP_PROP_ZOOM, 0x8004)
+    self.cap.set(cv2.CAP_PROP_ZOOM, capture_mode)
+
+  def __del__(self):
+    self.cap.release()
+
+  def grab_frame(self):
+    ret, frame = self.cap.read()
+    frame = frame.view(np.uint16).reshape([292, 384])
+    frame = frame[:288,...]
+
+    return frame
+
+  def camera_capture(self):
 
     # cap.read()
     with pyvirtualcam.Camera(width=384, height=288, fps=25) as cam:
@@ -56,69 +70,46 @@ class T3sCamera:
 
       while self.running:
         try:
-          ret, frame = cap.read() # Needs to be pipelines
-
-          frame = frame.view(np.uint16).reshape([292, 384])
-          frame = frame[:288,...]
+          frame = self.grab_frame()
 
           use_percent = self.data['clip_min_percent'] or self.data['clip_max_percent']
 
-          if self.data['clip_min_percent']:
-            frame_min = frame.min()
-          else:
-            frame_min = self.data['clip_min']
-
-          if self.data['clip_max_percent']:
-            frame_max = frame.max()
-          else:
-            frame_max = self.data['clip_max']
-
-          # DRA
           if use_percent:
-            histogram, bin_edges = np.histogram(frame, bins=range(frame_min, frame_max+2))
-            cdf = np.cumsum(histogram)
-
-          # Process max before min, cause it uses frame_min
-          if self.data['clip_max_percent']:
-            frame_max = (1-np.clip(self.data['clip_max'], 0, 1)) * 112128.0
-            try:
-              frame_max = next((idx for idx, val in np.ndenumerate(np.flip(cdf)) if val < frame_max))[0]
-            except StopIteration:
-              frame_max = len(cdf) - 1
-            frame_max = len(cdf) - frame_max - 1
-            frame_max += frame_min
-
-            self.dra_frame_max = frame_max
+            dra_min, dra_max = dra_frame(frame,
+              self.data['clip_min'] if self.data['clip_min_percent'] else None,
+              self.data['clip_max'] if self.data['clip_max_percent'] else None)
 
           if self.data['clip_min_percent']:
-            clip_min = np.clip(self.data['clip_min'], 0, 1) * frame.size
-            try:
-              clip_min = next((idx for idx, val in np.ndenumerate(cdf) if val > clip_min))[0] - 1
-            except StopIteration:
-              clip_min = len(cdf) - 1
-            frame_min += clip_min
+            frame_min = dra_min
+          else:
+            frame_min = frame.min()
 
-            self.dra_frame_min = frame_min
+          if self.data['clip_max_percent']:
+            frame_max = dra_max
+          else:
+            frame_max = frame.max()
 
           # Just sanity check
           frame_max = max(frame_min+1, frame_max)
 
-          frame = frame.astype(np.float32)
-
           # Sketchy auto-exposure
+          frame = frame.astype(np.float32)
           frame -= frame_min
           frame /= (frame_max-frame_min)
           frame = np.clip(frame, 0, 1)
           if self.data['gamma'] != 1:
             frame = frame ** (1/self.data['gamma'])
 
-          frame = cm.ScalarMappable(cmap=self.data['colormap']).to_rgba(frame, bytes=True)
+          frame = cm.ScalarMappable(
+              cmap=self.data['colormap'] + \
+                  ('_r' if self.data['colormap_reverse'] else '')).to_rgba(
+                      frame, bytes=True)
 
           cam.send(frame[:,:,0:3])
 
           t1 = time.time()
           if t1 - t0 > 30:
-            logger.info(f'{cam.current_fps:.1f} fps')
+            logger.debug(f'{cam.current_fps:.1f} fps')
             t0 = t1
 
           # This isn't needed, the read takes care of this
@@ -126,8 +117,6 @@ class T3sCamera:
         except:
           logger.critical(traceback.format_exc())
           time.sleep(0.01)
-
-    cap.release()
 
   def start_capture(self):
     self.running = True

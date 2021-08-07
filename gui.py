@@ -59,7 +59,6 @@ class T3sApp(tk.Tk):
     self.colormap_widget = tk.ttk.Combobox(frame, textvariable=self.colormap)
     self.colormap_widget['values'] = colormaps
     self.colormap_widget.pack(side='left')
-    self.colormap_reverse.set(False)
     self.colormap_reverse_widget = tk.ttk.Checkbutton(frame, text='Reverse',
         var=self.colormap_reverse)
     self.colormap_reverse_widget.pack(side='left')
@@ -72,7 +71,6 @@ class T3sApp(tk.Tk):
     self.clip_min_entry = tk.ttk.Entry(frame, width=10,
                                        textvariable=self.clip_min)
     self.clip_min_entry.pack(side='left')
-    self.clip_min_percent.set(True)
     self.clip_min_percent_widget = tk.ttk.Checkbutton(frame, text='%',
         var=self.clip_min_percent, command=self.update_clip_min_percent)
     self.clip_min_percent_widget.pack(side='left')
@@ -85,7 +83,6 @@ class T3sApp(tk.Tk):
     self.clip_max_entry = tk.ttk.Entry(frame, width=10,
                                        textvariable=self.clip_max)
     self.clip_max_entry.pack(side='left')
-    self.clip_max_percent.set(True)
     self.clip_max_percent_widget = tk.ttk.Checkbutton(frame, text='%',
         var=self.clip_max_percent, command=self.update_clip_max_percent)
     self.clip_max_percent_widget.pack(side='left')
@@ -144,8 +141,7 @@ class T3sApp(tk.Tk):
 
   def update_colormap(self, var=None, idx=None, mode=None):
     colormap = self.colormap.get()
-    if self.colormap_reverse.get():
-      colormap += '_r'
+    self.data['colormap_reverse'] = self.colormap_reverse.get()
     if colormap in plt.colormaps():
       self.data['colormap'] = colormap
 
@@ -221,7 +217,7 @@ class T3sApp(tk.Tk):
     self.update()
 
 if __name__ == "__main__":
-  logging.basicConfig(level=logging.DEBUG)
+  logging.basicConfig(level=logging.INFO)
   # test_cam()
   app = T3sApp()
   app.mainloop()

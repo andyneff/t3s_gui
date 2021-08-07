@@ -18,13 +18,15 @@ class T3sApp(tk.Tk):
   def __init__(self):
     super().__init__()
 
-    self.config_file = '~/.config/t3s_gui.json'
+    self.iconbitmap(os.path.join(os.path.dirname(__file__), 'power.ico'))
+
+    self.config_file = os.path.expanduser('~/.config/t3s_gui.json')
 
     self.title('T3S')
-#     self.geometry('300x500')
 
     colormaps = [x for x in plt.colormaps() if not x.endswith('_r')]
-    colormaps = ['gray', 'jet', 'hsv'] + [x for x in colormaps if x not in ['gray', 'jet', 'hsv']]
+    favorite_colormaps = ['gray', 'jet', 'hsv']
+    colormaps = favorite_colormaps + [x for x in colormaps if x not in favorite_colormaps]
 
     self.colormap = tk.StringVar()
     self.colormap_reverse = tk.BooleanVar()
@@ -33,6 +35,7 @@ class T3sApp(tk.Tk):
     self.clip_max = tk.DoubleVar()
     self.clip_max_percent = tk.BooleanVar()
     self.gamma = tk.DoubleVar()
+    self.irc_channel = tk.StringVar()
     self.irc_username = tk.StringVar()
     self.irc_oauth = tk.StringVar()
 
@@ -41,9 +44,11 @@ class T3sApp(tk.Tk):
     self.clip_min.trace_add('write', self.update_clip_min)
     self.clip_max.trace_add('write', self.update_clip_max)
     self.gamma.trace_add('write', self.update_gamma)
+    self.irc_channel.trace_add('write', self.update_irc)
     self.irc_username.trace_add('write', self.update_irc)
     self.irc_oauth.trace_add('write', self.update_irc)
 
+    self.irc = None
     self.data = {}
     self.load()
 
@@ -96,6 +101,13 @@ class T3sApp(tk.Tk):
 
     frame = tk.ttk.Frame(self)
     frame.pack()
+    tk.Label(frame, text="IRC Channel").pack(side='left')
+    self.irc_channel_entry = tk.ttk.Entry(frame,
+                                           textvariable=self.irc_channel)
+    self.irc_channel_entry.pack(side='left')
+
+    frame = tk.ttk.Frame(self)
+    frame.pack()
     tk.Label(frame, text="IRC Username").pack(side='left')
     self.irc_username_entry = tk.ttk.Entry(frame,
                                            textvariable=self.irc_username)
@@ -113,6 +125,9 @@ class T3sApp(tk.Tk):
 
     self.cam = T3sCamera(self.data)
     self.cam.start_capture()
+
+    if self.data['irc_channel'] and self.data['irc_username'] and self.data['irc_oauth']:
+      pass
 
   def esc_handler(self, event):
     self.destroy()
@@ -153,10 +168,9 @@ class T3sApp(tk.Tk):
     self.update_clip_max()
 
   def update_irc(self, var=None, idx=None, mode=None):
+    self.data['irc_channel'] = self.irc_channel.get()
     self.data['irc_username'] = self.irc_username.get()
     self.data['irc_oauth'] = self.irc_oauth.get()
-    if self.data['irc_oauth'] and self.data['irc_username']:
-      pass
 
   def update(self):
     self.update_clip_min_percent()
@@ -175,14 +189,14 @@ class T3sApp(tk.Tk):
     return super().destroy(*args, **kwargs)
 
   def save(self):
-    os.makedirs(os.path.dirname(os.path.expanduser(self.config_file)), exist_ok=True)
-    with open(os.path.expanduser(self.config_file), 'w') as fid:
+    os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
+    with open(self.config_file, 'w') as fid:
       json.dump(self.data, fid)
 
   def load(self):
     options = {}
-    if os.path.exists(os.path.expanduser(self.config_file)):
-      with open(os.path.expanduser(self.config_file), 'r') as fid:
+    if os.path.exists(self.config_file):
+      with open(self.config_file, 'r') as fid:
         options = json.load(fid)
 
     self.colormap.set(options.get('colormap', 'gray'))
@@ -193,13 +207,14 @@ class T3sApp(tk.Tk):
     self.clip_max_percent.set(options.get('clip_max_percent', True))
     self.gamma.set(options.get('gamma', 2.2))
 
+    self.irc_channel.set(options.get('irc_channel', ''))
     self.irc_username.set(options.get('irc_username', ''))
     self.irc_oauth.set(options.get('irc_oauth', ''))
 
     self.update()
 
 if __name__ == "__main__":
-  logging.basicConfig(level=logging.DEBUG)
+  logging.basicConfig(level=logging.WARNING)
   # test_cam()
   app = T3sApp()
   app.mainloop()

@@ -154,4 +154,5 @@ def test_cam():
   cam.camera_capture()
 
 if __name__ == '__main__':
+  logging.basicConfig(level=logging.DEBUG)
   test_cam()

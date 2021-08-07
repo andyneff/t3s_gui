@@ -10,6 +10,33 @@ import numpy as np
 import cv2
 from matplotlib import cm
 
+def dra_frame(frame, min=None, max=None):
+  histogram, bin_edges = np.histogram(frame, bins=range(frame_min, frame_max+2))
+  cdf = np.cumsum(histogram)
+
+  # Process max before min, cause it uses frame_min
+  if max is not None:
+    frame_max = (1-np.clip(max, 0, 1)) * 112128.0
+    try:
+      frame_max = next((idx for idx, val in np.ndenumerate(np.flip(cdf)) if val < frame_max))[0]
+    except StopIteration:
+      frame_max = len(cdf) - 1
+    frame_max = len(cdf) - frame_max - 1
+    frame_max += frame_min
+
+    self.dra_frame_max = frame_max
+
+  if min is not None:
+    clip_min = np.clip(min, 0, 1) * frame.size
+    try:
+      clip_min = next((idx for idx, val in np.ndenumerate(cdf) if val > clip_min))[0] - 1
+    except StopIteration:
+      clip_min = len(cdf) - 1
+    frame_min += clip_min
+
+    self.dra_frame_min = frame_min
+
+
 class T3sCamera:
   def __init__(self, data={}):
     self.data = data
@@ -20,18 +47,17 @@ class T3sCamera:
     # Use raw mode
     cap.set(cv2.CAP_PROP_ZOOM, 0x8004)
 
+    # cap.read()
     with pyvirtualcam.Camera(width=384, height=288, fps=25, print_fps=True) as cam:
       logger.debug(f'Using virtual camera: {cam.device}')
       frame = np.zeros((cam.height, cam.width, 3), np.uint8)  # RGB
 
       t0 = time.time()-9
 
-      # cam.send(np.zeros((288, 384, 3), dtype=np.uint8))
-      # cam.sleep_until_next_frame()
-
       while self.running:
         try:
           ret, frame = cap.read() # Needs to be pipelines
+
           frame = frame.view(np.uint16).reshape([292, 384])
           frame = frame[:288,...]
 
@@ -52,6 +78,7 @@ class T3sCamera:
             histogram, bin_edges = np.histogram(frame, bins=range(frame_min, frame_max+2))
             cdf = np.cumsum(histogram)
 
+          # Process max before min, cause it uses frame_min
           if self.data['clip_max_percent']:
             frame_max = (1-np.clip(self.data['clip_max'], 0, 1)) * 112128.0
             try:
@@ -59,12 +86,9 @@ class T3sCamera:
             except StopIteration:
               frame_max = len(cdf) - 1
             frame_max = len(cdf) - frame_max - 1
-
-            i1 = np.clip(frame_max-5, 0, len(cdf))
-            i2 = np.clip(frame_max+5, 0, len(cdf))
-
             frame_max += frame_min
 
+            self.dra_frame_max = frame_max
 
           if self.data['clip_min_percent']:
             clip_min = np.clip(self.data['clip_min'], 0, 1) * frame.size
@@ -72,9 +96,9 @@ class T3sCamera:
               clip_min = next((idx for idx, val in np.ndenumerate(cdf) if val > clip_min))[0] - 1
             except StopIteration:
               clip_min = len(cdf) - 1
-
             frame_min += clip_min
 
+            self.dra_frame_min = frame_min
 
           # Just sanity check
           frame_max = max(frame_min+1, frame_max)
@@ -91,13 +115,8 @@ class T3sCamera:
           frame = cm.ScalarMappable(cmap=self.data['colormap']).to_rgba(frame, bytes=True)
 
           cam.send(frame[:,:,0:3])
-
-          # t1 = time.time()
-          # if t1 - t0 > 1:
-          #   t0 = t1
-          #   logger.debug(f'{cam.current_fps:.1f} fps | {100*(cam._extra_time_per_frame * cam._fps):.0f} %')
-
-          cam.sleep_until_next_frame()
+          # This isn't needed, the read takes care of this
+          # cam.sleep_until_next_frame()
         except:
           logger.critical(traceback.format_exc())
           time.sleep(0.01)
@@ -114,3 +133,25 @@ class T3sCamera:
     self.camera_thread.join(1)
     if self.camera_thread.is_alive():
       logging.error('Thread did not end')
+
+def test_cam():
+  import signal
+
+  cam = T3sCamera()
+  cam.data['colormap'] = 'jet'
+  cam.data['colormap_reverse'] = False
+  cam.data['clip_min'] = 0.04
+  cam.data['clip_min_percent'] = True
+  cam.data['clip_max'] = 0.04
+  cam.data['clip_max_percent'] = True
+  cam.data['gamma'] = 2.2
+  cam.running = True
+
+  def handler(signum, frame):
+    cam.running = False
+  signal.signal(signal.SIGINT, handler)
+
+  cam.camera_capture()
+
+if __name__ == '__main__':
+  test_cam()

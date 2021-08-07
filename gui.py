@@ -131,20 +131,25 @@ class T3sApp(tk.Tk):
       colormap += '_r'
     if colormap in plt.colormaps():
       self.data['colormap'] = colormap
-    print(self.data)
 
   def update_clip_min(self, var=None, idx=None, mode=None):
     self.data['clip_min'] = self.clip_min.get()
 
-  def update_clip_min_percent(self, data):
-    self.data['clip_min_percent'] = data
+  def update_clip_min_percent(self):
+    self.data['clip_min_percent'] = self.clip_min_percent.get()
+    if self.data['clip_min_percent']:
+      # percent mode turned on
+      pass
+    else:
+      # percent mode turns off
+      pass
     self.update_clip_min()
 
   def update_clip_max(self, var=None, idx=None, mode=None):
     self.data['clip_max'] = self.clip_max.get()
 
-  def update_clip_max_percent(self, data):
-    self.data['clip_max_percent'] = data
+  def update_clip_max_percent(self):
+    self.data['clip_max_percent'] = self.clip_max_percent.get()
     self.update_clip_max()
 
   def update_irc(self, var=None, idx=None, mode=None):
@@ -154,8 +159,8 @@ class T3sApp(tk.Tk):
       pass
 
   def update(self):
-    self.update_clip_min_percent(self.clip_min_percent.get())
-    self.update_clip_max_percent(self.clip_max_percent.get())
+    self.update_clip_min_percent()
+    self.update_clip_max_percent()
     self.update_colormap()
     self.update_gamma()
     self.update_irc()
@@ -192,31 +197,6 @@ class T3sApp(tk.Tk):
     self.irc_oauth.set(options.get('irc_oauth', ''))
 
     self.update()
-
-def test_cam():
-  import signal
-
-  class Var:
-    def __init__(self, value):
-      self.value = value
-    def get(self):
-      return self.value
-
-  cam = T3sCamera()
-  cam.data['colormap'] = Var('jet')
-  cam.data['colormap_reverse'] = Var(False)
-  cam.data['clip_min'] = Var(0.04)
-  cam.data['clip_min_percent'] = Var(True)
-  cam.data['clip_max'] = Var(0.04)
-  cam.data['clip_max_percent'] = Var(True)
-  cam.data['gamma'] = Var(2.2)
-  cam.running = True
-
-  def handler(signum, frame):
-    cam.running = False
-  signal.signal(signal.SIGINT, handler)
-
-  cam.camera_capture()
 
 if __name__ == "__main__":
   logging.basicConfig(level=logging.DEBUG)

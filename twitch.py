@@ -26,11 +26,18 @@ def is_command(message, commands=[], required_argument=False):
 #     offset+=1
 #   return LinearSegmentedColormap('custom', cat_segment_data)
 
+def get_colormap_i(colormap):
+  colormaps = plt.colormaps()
+  try:
+    return colormaps[[x.lower() for x in colormaps].index(colormap.lower())]
+  except ValueError:
+    return None
+
 def cat_maps(map_name, *args):
+  colormaps=[get_colormap_i(x) for x in args]
   def band(points, color):
     idx = (int(x*len(args)) if x != 1 else len(args)-1 for x in points)
-    return [colormaps[i](x*len(args) - i)[color] for x,i in zip(points, idx)]
-  colormaps=[cm.get_cmap(x) for x in args]
+    return [cm.get_cmap(colormaps[i])(x*len(args) - i)[color] for x,i in zip(points, idx)]
   cat_segment_data = {'red': partial(band, color=0),
                       'green': partial(band, color=1),
                       'blue': partial(band, color=2)}
@@ -87,10 +94,9 @@ class IrcBot(irc.bot.SingleServerIRCBot):
 
       elif is_command(event.arguments[0], ['cmap','colormap', 'colourmap'], True):
         parsed = event.arguments[0].split(' ')
-        colormap = parsed[1]
-        colormaps = plt.colormaps()
+        colormap = get_colormap_i(parsed[1])
 
-        if colormap in colormaps:
+        if colormap is not None:
           if len(parsed) > 2:
             if len(parsed) > 100 or 'custom' in parsed:
               # max to prevent someone trying to eat my RAM
@@ -106,7 +112,7 @@ class IrcBot(irc.bot.SingleServerIRCBot):
           logger.info(message)
           self.config['colormap'] = colormap
         else:
-          connection.privmsg(event.target, f'{colormap} is not a valid colormap name. See: https://matplotlib.org/stable/tutorials/colors/colormaps.html')
+          connection.privmsg(event.target, f'That was not a valid colormap name. See: https://matplotlib.org/stable/tutorials/colors/colormaps.html')
       else:
         Popen(['powershell', '-NoProfile', '-Command',
                '''$w=New-Object System.Media.SoundPlayer

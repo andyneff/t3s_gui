@@ -74,7 +74,6 @@ class T3sCamera:
           self.last_frame = frame # Save copy for async calcs
 
           use_percent = self.data['clip_min_percent'] or self.data['clip_max_percent']
-
           if use_percent:
             dra_min, dra_max = dra_frame(frame,
               self.data['clip_min'] if self.data['clip_min_percent'] else None,
@@ -103,10 +102,17 @@ class T3sCamera:
           if self.data['gamma'] != 1:
             frame = frame ** (1/self.data['gamma'])
 
-          frame = cm.ScalarMappable(
-              cmap=self.data['colormap'] + \
-                  ('_r' if self.data['colormap_reverse'] else '')).to_rgba(
-                      frame, bytes=True)
+          print(use_percent,
+                self.data['clip_min_percent'],
+                self.data['clip_max_percent'],
+                f'{frame.min()} -> {frame_min}',
+                f'{frame.max()} -> {frame_max}')
+
+
+          mapper = cm.ScalarMappable(cmap=self.data['colormap'] +
+                  ('_r' if self.data['colormap_reverse'] else ''))
+          mapper.set_clim(0, 1)
+          frame = mapper.to_rgba(frame, bytes=True)
 
           cam.send(frame[:,:,0:3])
 

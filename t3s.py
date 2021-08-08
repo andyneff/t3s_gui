@@ -102,13 +102,6 @@ class T3sCamera:
           if self.data['gamma'] != 1:
             frame = frame ** (1/self.data['gamma'])
 
-          print(use_percent,
-                self.data['clip_min_percent'],
-                self.data['clip_max_percent'],
-                f'{frame.min()} -> {frame_min}',
-                f'{frame.max()} -> {frame_max}')
-
-
           mapper = cm.ScalarMappable(cmap=self.data['colormap'] +
                   ('_r' if self.data['colormap_reverse'] else ''))
           mapper.set_clim(0, 1)
@@ -120,9 +113,6 @@ class T3sCamera:
           if t1 - t0 > 30:
             logger.debug(f'{cam.current_fps:.1f} fps')
             t0 = t1
-
-          # This isn't needed, the read takes care of this
-          # cam.sleep_until_next_frame()
         except:
           logger.critical(traceback.format_exc())
           time.sleep(0.01)

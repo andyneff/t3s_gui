@@ -121,6 +121,9 @@ class T3sApp(tk.Tk):
     self.bind('<Return>', self.return_handler)
     self.bind('<Escape>', self.esc_handler)
 
+    self.bind('<Up>', self.scroll_colormap_handler)
+    self.bind('<Down>', self.scroll_colormap_handler)
+
     self.cam = T3sCamera(self.data)
     self.cam.start_capture()
 
@@ -135,6 +138,18 @@ class T3sApp(tk.Tk):
     logger.info("You hit return.")
     self.update_clip_min(self.clip_min_scale.get())
     self.update_clip_max(self.clip_max_scale.get())
+
+  def scroll_colormap_handler(self, event):
+    current = self.colormap_widget.current()
+    if event.keysym == 'Up':
+      current = current - 1
+    elif event.keysym == 'Down':
+      current = current + 1
+    if current < 0:
+      current = len(self.colormap_widget['values'])-1
+    if current >= len(self.colormap_widget['values']):
+      current = 0
+    self.colormap_widget.current(current)
 
   def update_gamma(self, var=None, idx=None, mode=None):
     self.data['gamma'] = self.gamma.get()
@@ -155,7 +170,6 @@ class T3sApp(tk.Tk):
         # percent mode turned on
         self.clip_min_scale.configure(from_=0)
         self.clip_min_scale.configure(to=0.1)
-        print((self.cam.last_frame <= self.cam.last_frame_min).sum()/self.cam.last_frame.size)
         self.clip_min.set(((self.cam.last_frame <= self.cam.last_frame_min).sum())/self.cam.last_frame.size)
       else:
         # percent mode turns off
@@ -176,7 +190,6 @@ class T3sApp(tk.Tk):
         # percent mode turned on
         self.clip_max_scale.configure(from_=0)
         self.clip_max_scale.configure(to=0.1)
-        print((self.cam.last_frame >= self.cam.last_frame_max).sum()/self.cam.last_frame.size)
         self.clip_max.set((self.cam.last_frame >= self.cam.last_frame_max).sum()/self.cam.last_frame.size)
       else:
         # percent mode turns off

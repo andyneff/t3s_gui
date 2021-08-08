@@ -71,6 +71,7 @@ class T3sCamera:
       while self.running:
         try:
           frame = self.grab_frame()
+          self.last_frame = frame # Save copy for async calcs
 
           use_percent = self.data['clip_min_percent'] or self.data['clip_max_percent']
 
@@ -82,15 +83,17 @@ class T3sCamera:
           if self.data['clip_min_percent']:
             frame_min = dra_min
           else:
-            frame_min = frame.min()
+            frame_min = self.data['clip_min']
 
           if self.data['clip_max_percent']:
             frame_max = dra_max
           else:
-            frame_max = frame.max()
+            frame_max = self.data['clip_max']
 
           # Just sanity check
           frame_max = max(frame_min+1, frame_max)
+          self.last_frame_min = frame_min
+          self.last_frame_max = frame_max
 
           # Sketchy auto-exposure
           frame = frame.astype(np.float32)

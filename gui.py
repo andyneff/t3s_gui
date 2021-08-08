@@ -150,12 +150,19 @@ class T3sApp(tk.Tk):
 
   def update_clip_min_percent(self):
     self.data['clip_min_percent'] = self.clip_min_percent.get()
-    if self.data['clip_min_percent']:
-      # percent mode turned on
-      pass
-    else:
-      # percent mode turns off
-      pass
+    if hasattr(self, 'cam'):
+      if self.data['clip_min_percent']:
+        # percent mode turned on
+        self.clip_min_scale.configure(from_=0)
+        self.clip_min_scale.configure(to=0.1)
+        print((self.cam.last_frame <= self.cam.last_frame_min).sum()/self.cam.last_frame.size)
+        self.clip_min.set(((self.cam.last_frame <= self.cam.last_frame_min).sum())/self.cam.last_frame.size)
+      else:
+        # percent mode turns off
+        self.clip_min_scale.configure(from_=self.cam.last_frame.min()-100)
+        self.clip_min_scale.configure(to=self.cam.last_frame.max()+100)
+        self.clip_min.set(self.cam.last_frame_min)
+
     self.update_clip_min()
 
   def update_clip_max(self, var=None, idx=None, mode=None):
@@ -163,6 +170,19 @@ class T3sApp(tk.Tk):
 
   def update_clip_max_percent(self):
     self.data['clip_max_percent'] = self.clip_max_percent.get()
+
+    if hasattr(self, 'cam'):
+      if self.data['clip_max_percent']:
+        # percent mode turned on
+        self.clip_max_scale.configure(from_=0)
+        self.clip_max_scale.configure(to=0.1)
+        print((self.cam.last_frame >= self.cam.last_frame_max).sum()/self.cam.last_frame.size)
+        self.clip_max.set((self.cam.last_frame >= self.cam.last_frame_max).sum()/self.cam.last_frame.size)
+      else:
+        # percent mode turns off
+        self.clip_max_scale.configure(from_=self.cam.last_frame.min()-100)
+        self.clip_max_scale.configure(to=self.cam.last_frame.max()+100)
+        self.clip_max.set(self.cam.last_frame_max)
     self.update_clip_max()
 
   def update_irc(self, var=None, idx=None, mode=None):

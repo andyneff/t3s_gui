@@ -26,7 +26,7 @@ class T3sApp(tk.Tk):
     self.title('T3S')
 
     colormaps = [x for x in plt.colormaps() if not x.endswith('_r')]
-    favorite_colormaps = ['gray', 'jet', 'hsv', 'gnuplot2']
+    favorite_colormaps = ['gray', 'jet', 'hsv', 'gnuplot2', 'raw']
     colormaps = favorite_colormaps + [x for x in colormaps if x not in favorite_colormaps]
 
     self.colormap = tk.StringVar()
@@ -159,6 +159,11 @@ class T3sApp(tk.Tk):
     self.data['colormap_reverse'] = self.colormap_reverse.get()
     if colormap in plt.colormaps():
       self.data['colormap'] = colormap
+    elif colormap in ['raw']:
+      self.data['colormap'] = colormap
+    else:
+      # attempt custom here
+      pass
 
   def update_clip_min(self, var=None, idx=None, mode=None):
     self.data['clip_min'] = self.clip_min.get()

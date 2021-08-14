@@ -72,40 +72,43 @@ class T3sCamera:
         try:
           frame = self.grab_frame()
           self.last_frame = frame # Save copy for async calcs
-
-          use_percent = self.data['clip_min_percent'] or self.data['clip_max_percent']
-          if use_percent:
-            dra_min, dra_max = dra_frame(frame,
-              self.data['clip_min'] if self.data['clip_min_percent'] else None,
-              self.data['clip_max'] if self.data['clip_max_percent'] else None)
-
-          if self.data['clip_min_percent']:
-            frame_min = dra_min
+          if self.data['colormap'] == 'raw':
+            print(frame.shape+(3,))
+            frame = np.stack((frame%256, frame/256, np.zeros(frame.shape)), axis=2).astype(np.uint8)
           else:
-            frame_min = self.data['clip_min']
+            use_percent = self.data['clip_min_percent'] or self.data['clip_max_percent']
+            if use_percent:
+              dra_min, dra_max = dra_frame(frame,
+                self.data['clip_min'] if self.data['clip_min_percent'] else None,
+                self.data['clip_max'] if self.data['clip_max_percent'] else None)
 
-          if self.data['clip_max_percent']:
-            frame_max = dra_max
-          else:
-            frame_max = self.data['clip_max']
+            if self.data['clip_min_percent']:
+              frame_min = dra_min
+            else:
+              frame_min = self.data['clip_min']
 
-          # Just sanity check
-          frame_max = max(frame_min+1, frame_max)
-          self.last_frame_min = frame_min
-          self.last_frame_max = frame_max
+            if self.data['clip_max_percent']:
+              frame_max = dra_max
+            else:
+              frame_max = self.data['clip_max']
 
-          # Sketchy auto-exposure
-          frame = frame.astype(np.float32)
-          frame -= frame_min
-          frame /= (frame_max-frame_min)
-          frame = np.clip(frame, 0, 1)
-          if self.data['gamma'] != 1:
-            frame = frame ** (1/self.data['gamma'])
+            # Just sanity check
+            frame_max = max(frame_min+1, frame_max)
+            self.last_frame_min = frame_min
+            self.last_frame_max = frame_max
 
-          mapper = cm.ScalarMappable(cmap=self.data['colormap'] +
-                  ('_r' if self.data['colormap_reverse'] else ''))
-          mapper.set_clim(0, 1)
-          frame = mapper.to_rgba(frame, bytes=True)
+            # Sketchy auto-exposure
+            frame = frame.astype(np.float32)
+            frame -= frame_min
+            frame /= (frame_max-frame_min)
+            frame = np.clip(frame, 0, 1)
+            if self.data['gamma'] != 1:
+              frame = frame ** (1/self.data['gamma'])
+
+            mapper = cm.ScalarMappable(cmap=self.data['colormap'] +
+                    ('_r' if self.data['colormap_reverse'] else ''))
+            mapper.set_clim(0, 1)
+            frame = mapper.to_rgba(frame, bytes=True)
 
           cam.send(frame[:,:,0:3])
 

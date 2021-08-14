@@ -85,12 +85,12 @@ class IrcBot(irc.bot.SingleServerIRCBot):
         if len(args) > 1:
           if args[1] in ['cmap', 'colormap', 'colourmap']:
             connection.privmsg(event.target,
-              '!cmap <colormapname> [<colormapname> ...]')
+              f'The !{args[1]} command can be used to change the colors of the camera. Usage: !{args[1]} <colormapname> [<colormapname> ...]. Try "!{args[1]} gray hsv"')
           # elif args[1] in []:
           else:
             connection.privmsg(event.target, "I don't have that command")
         else:
-          connection.privmsg(event.target, "Current commands: cmap/colormap/colourmap")
+          connection.privmsg(event.target, 'Current commands: cmap/colormap/colourmap. Usage: !help <command>, to get more information about a specific command. Try "!help cmap"')
 
       elif is_command(event.arguments[0], ['cmap','colormap', 'colourmap'], True):
         parsed = event.arguments[0].split(' ')

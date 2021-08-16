@@ -136,8 +136,7 @@ class T3sApp(tk.Tk):
 
   def return_handler(self, event):
     logger.info("You hit return.")
-    self.update_clip_min(self.clip_min_scale.get())
-    self.update_clip_max(self.clip_max_scale.get())
+    
 
   def scroll_colormap_handler(self, event):
     current = self.colormap_widget.current()

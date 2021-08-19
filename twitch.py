@@ -10,21 +10,6 @@ import matplotlib.cm as cm
 from matplotlib.colors import LinearSegmentedColormap
 import irc.bot
 
-def is_command(message, commands=[], required_argument=False):
-  for command in commands:
-    if message.startswith(f'!{command}{" " if required_argument else ""}'):
-      return True
-  return False
-
-# def cat_maps(*args):
-#   cat_segment_data = {'red': (), 'blue': (), 'green': ()}
-#   offset = 0
-#   for arg in args:
-#     segment_data = cm.get_cmap(arg)._segmentdata
-#     for color in ['red', 'blue', 'green']:
-#       cat_segment_data[color] = cat_segment_data[color] + tuple(((x[0]+offset)/len(args), x[1], x[2]) for x in segment_data[color])
-#     offset+=1
-#   return LinearSegmentedColormap('custom', cat_segment_data)
 
 def get_colormap_i(colormap):
   colormaps = plt.colormaps()
@@ -43,13 +28,110 @@ def cat_maps(map_name, *args):
                       'blue': partial(band, color=2)}
   return LinearSegmentedColormap(map_name, cat_segment_data)
 
+
+class Command:
+  def __init__(self):
+    self.commands = None
+    self.min_args = None
+    self.max_args = None
+
+  def check_command(self, event, connection, bot):
+    parsed = event.arguments[0].split(' ')
+    word = parsed[0].lower()
+    for command in self.commands:
+      if word == f'!{command}':
+        if self.min_args is not None and len(parsed) - 1 < self.min_args:
+          self.not_enough_args(event, connection, word)
+        elif self.max_args is not None and len(parsed) - 1 > self.max_args:
+          self.too_many_args(event, connection, word)
+        else:
+          self.process(event, connection, bot, *parsed[1:])
+        return True
+    return False
+
+  def not_enough_args(self, event, connection, word):
+    connection.privmsg(event.target, f'{word} needs at least {self.min_args} argument{"s" if self.min_args>1 else ""}')
+
+  def too_many_args(self, event, connection, word):
+    connection.privmsg(event.target, f"{word} can't have more than {self.max_args} argument{'s' if self.min_args>1 else ''}")
+
+  def process(self, event, connection, bot, *args):
+    pass
+
+  def help_text(self, command_name):
+    return f"Todo. Write help for {command_name}"
+
+
+class HelpCommand(Command):
+  def __init__(self, supported_commands):
+    super().__init__()
+    self.commands = ['help']
+    self.supported_commands = supported_commands
+    self.max_args = 1
+
+  def process(self, event, connection, bot, *args):
+    if args:
+      word = args[0].lower()
+      for command in self.supported_commands:
+        if word in command.commands:
+          connection.privmsg(event.target, command.help_text(word))
+          return
+      connection.privmsg(event.target, f"I don't know how to help you with !{word}")
+    else:
+      commands = []
+      for command in self.supported_commands:
+        commands += command.commands
+      connection.privmsg(event.target,
+          f'Current commands: {"/".join(commands)}. Try "!help cmap"')
+
+  def help_text(self, command_name):
+    return f"Usage: !{command_name} <command>, to get more information " + \
+           f"about a specific command. Try: \"!{command_name} cmap\""
+
+
+class ColormapCommand(Command):
+  def __init__(self):
+    super().__init__()
+    self.commands = ['cmap','colormap', 'colourmap']
+    self.nargs = 1
+
+  def process(self, event, connection, bot, *args):
+    colormap = get_colormap_i(args[0])
+
+    if colormap is not None:
+      if len(args) > 1:
+        if len(args) > 100 or 'custom' in args:
+          # max to prevent someone trying to eat my RAM
+          # auto Ban?
+          return
+        colormap = 'custom'
+        custom = cat_maps(colormap, *args)
+        cm.register_cmap(cmap=custom)
+        message = f'Changing colormap to a custom colormap'
+      else:
+        message = f'Changing colormap to {colormap}'
+      connection.privmsg(event.target, message)
+      logger.info(message)
+      bot.config['colormap'] = colormap
+    else:
+      connection.privmsg(event.target, f'That was not a valid colormap name. See: https://matplotlib.org/stable/tutorials/colors/colormaps.html')
+
+  def help_text(self, command_name):
+    return f'The !{command_name} command can be used to change the colors ' + \
+           f'of the camera. Usage: !{command_name} <colormapname> ' + \
+           f'[<colormapname> ...]. Try "!{command_name} gray hsv"'
+
+
 class IrcBot(irc.bot.SingleServerIRCBot):
   def __init__(self, config):
     self.config = config
-
+    self.commands = []
     super().__init__([('irc.twitch.tv', 6667, self.config['irc_oauth'])],
                      self.config['irc_username'],
                      self.config['irc_username'])
+
+    self.commands.append(ColormapCommand())
+    self.commands.append(HelpCommand(self.commands))
 
     self.thread = None
 
@@ -80,45 +162,14 @@ class IrcBot(irc.bot.SingleServerIRCBot):
 
   def on_pubmsg(self, connection, event):
     if event.target == self.config['irc_channel']:
-      if is_command(event.arguments[0], ['help']):
-        args = event.arguments[0].split(' ')
-        if len(args) > 1:
-          if args[1] in ['cmap', 'colormap', 'colourmap']:
-            connection.privmsg(event.target,
-              f'The !{args[1]} command can be used to change the colors of the camera. Usage: !{args[1]} <colormapname> [<colormapname> ...]. Try "!{args[1]} gray hsv"')
-          # elif args[1] in []:
-          else:
-            connection.privmsg(event.target, "I don't have that command")
-        else:
-          connection.privmsg(event.target, 'Current commands: cmap/colormap/colourmap. Usage: !help <command>, to get more information about a specific command. Try "!help cmap"')
-
-      elif is_command(event.arguments[0], ['cmap','colormap', 'colourmap'], True):
-        parsed = event.arguments[0].split(' ')
-        colormap = get_colormap_i(parsed[1])
-
-        if colormap is not None:
-          if len(parsed) > 2:
-            if len(parsed) > 100 or 'custom' in parsed:
-              # max to prevent someone trying to eat my RAM
-              # auto Ban?
-              return
-            colormap = 'custom'
-            custom = cat_maps(colormap, *parsed[1:])
-            cm.register_cmap(cmap=custom)
-            message = f'Changing colormap to a custom colormap'
-          else:
-            message = f'Changing colormap to {colormap}'
-          connection.privmsg(event.target, message)
-          logger.info(message)
-          self.config['colormap'] = colormap
-        else:
-          connection.privmsg(event.target, f'That was not a valid colormap name. See: https://matplotlib.org/stable/tutorials/colors/colormaps.html')
-      else:
-        Popen(['powershell', '-NoProfile', '-Command',
-               '''$w=New-Object System.Media.SoundPlayer
-               $filename = (Get-ItemProperty -Path HKCU:\\AppEvents\\Schemes\\Apps\\.Default\\Notification.IM\\.Current).'(default)'
-               $w.SoundLocation = $filename
-               $w.playsync()'''])
+      for command in self.commands:
+        if command.check_command(event, connection, self):
+          return
+      Popen(['powershell', '-NoProfile', '-Command',
+              '''$w=New-Object System.Media.SoundPlayer
+              $filename = (Get-ItemProperty -Path HKCU:\\AppEvents\\Schemes\\Apps\\.Default\\Notification.IM\\.Current).'(default)'
+              $w.SoundLocation = $filename
+              $w.playsync()'''])
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.DEBUG)

@@ -136,7 +136,6 @@ class T3sApp(tk.Tk):
 
   def return_handler(self, event):
     logger.info("You hit return.")
-    
 
   def scroll_colormap_handler(self, event):
     current = self.colormap_widget.current()

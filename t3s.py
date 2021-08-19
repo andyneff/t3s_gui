@@ -73,7 +73,6 @@ class T3sCamera:
           frame = self.grab_frame()
           self.last_frame = frame # Save copy for async calcs
           if self.data['colormap'] == 'raw':
-            print(frame.shape+(3,))
             frame = np.stack((frame%256, frame/256, np.zeros(frame.shape)), axis=2).astype(np.uint8)
           else:
             use_percent = self.data['clip_min_percent'] or self.data['clip_max_percent']

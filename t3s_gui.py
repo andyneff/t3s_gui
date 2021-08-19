@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 import matplotlib.pyplot as plt
 
 from t3s import T3sCamera
-from twitch import IrcBot
+from twitch import IrcBot, ColormapCommand, special_colormaps
 
 class T3sApp(tk.Tk):
   def __init__(self):
@@ -26,7 +26,7 @@ class T3sApp(tk.Tk):
     self.title('T3S')
 
     colormaps = [x for x in plt.colormaps() if not x.endswith('_r')]
-    favorite_colormaps = ['gray', 'jet', 'hsv', 'gnuplot2', 'raw']
+    favorite_colormaps = ['gray', 'jet', 'hsv', 'gnuplot2'] + special_colormaps
     colormaps = favorite_colormaps + [x for x in colormaps if x not in favorite_colormaps]
 
     self.colormap = tk.StringVar()
@@ -136,6 +136,10 @@ class T3sApp(tk.Tk):
 
   def return_handler(self, event):
     logger.info("You hit return.")
+    colormap = ColormapCommand.process_colormap_args(*self.colormap_widget.get().split())
+    if colormap == 'custom':
+      self.data['colormap'] = colormap
+      self.data['colormap_reverse'] = False
 
   def scroll_colormap_handler(self, event):
     current = self.colormap_widget.current()
@@ -157,10 +161,11 @@ class T3sApp(tk.Tk):
     self.data['colormap_reverse'] = self.colormap_reverse.get()
     if colormap in plt.colormaps():
       self.data['colormap'] = colormap
-    elif colormap in ['raw']:
+    elif colormap in special_colormaps:
       self.data['colormap'] = colormap
     else:
       # attempt custom here
+      # see return handler...
       pass
 
   def update_clip_min(self, var=None, idx=None, mode=None):

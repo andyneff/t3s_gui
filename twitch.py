@@ -11,24 +11,6 @@ from matplotlib.colors import LinearSegmentedColormap
 import irc.bot
 
 
-def get_colormap_i(colormap):
-  colormaps = plt.colormaps()
-  try:
-    return colormaps[[x.lower() for x in colormaps].index(colormap.lower())]
-  except ValueError:
-    return None
-
-def cat_maps(map_name, *args):
-  colormaps=[get_colormap_i(x) for x in args]
-  def band(points, color):
-    idx = (int(x*len(args)) if x != 1 else len(args)-1 for x in points)
-    return [cm.get_cmap(colormaps[i])(x*len(args) - i)[color] for x,i in zip(points, idx)]
-  cat_segment_data = {'red': partial(band, color=0),
-                      'green': partial(band, color=1),
-                      'blue': partial(band, color=2)}
-  return LinearSegmentedColormap(map_name, cat_segment_data)
-
-
 class Command:
   def __init__(self):
     self.commands = None
@@ -89,14 +71,46 @@ class HelpCommand(Command):
            f"about a specific command. Try: \"!{command_name} cmap\""
 
 
+colormaps = plt.colormaps()
+special_colormaps = ["raw", "multi gamma"]
+
+
 class ColormapCommand(Command):
   def __init__(self):
     super().__init__()
     self.commands = ['cmap','colormap', 'colourmap']
     self.nargs = 1
 
-  def process(self, event, connection, bot, *args):
-    colormap = get_colormap_i(args[0])
+  @staticmethod
+  def get_colormap_i(colormap):
+    try:
+      return colormaps[[x.lower() for x in colormaps].index(colormap.lower())]
+    except ValueError:
+      return None
+
+  @staticmethod
+  def get_special_colormap_i(colormap):
+    try:
+      return special_colormaps[[x.lower() for x in special_colormaps].index(colormap.lower())]
+    except ValueError:
+      return None
+
+  @staticmethod
+  def cat_maps(map_name, *args):
+    colormaps=[ColormapCommand.get_colormap_i(x) for x in args]
+    if None in colormaps:
+      return None
+    def band(points, color):
+      idx = (int(x*len(args)) if x != 1 else len(args)-1 for x in points)
+      return [cm.get_cmap(colormaps[i])(x*len(args) - i)[color] for x,i in zip(points, idx)]
+    cat_segment_data = {'red': partial(band, color=0),
+                        'green': partial(band, color=1),
+                        'blue': partial(band, color=2)}
+    return LinearSegmentedColormap(map_name, cat_segment_data)
+
+  @staticmethod
+  def process_colormap_args(*args):
+    colormap = ColormapCommand.get_colormap_i(args[0])
 
     if colormap is not None:
       if len(args) > 1:
@@ -104,17 +118,33 @@ class ColormapCommand(Command):
           # max to prevent someone trying to eat my RAM
           # auto Ban?
           return
-        colormap = 'custom'
-        custom = cat_maps(colormap, *args)
-        cm.register_cmap(cmap=custom)
-        message = f'Changing colormap to a custom colormap'
-      else:
-        message = f'Changing colormap to {colormap}'
+        custom = ColormapCommand.cat_maps('custom', *args)
+        if custom is not None:
+          colormap = 'custom'
+          cm.register_cmap(cmap=custom)
+        else:
+          colormap = None
+      return colormap
+
+    colormap = ColormapCommand.get_special_colormap_i(args[0])
+    if colormap is not None:
+      return colormap + ' '.join(args[1:])
+    return None
+
+  def process(self, event, connection, bot, *args):
+    colormap = ColormapCommand.process_colormap_args(*args)
+    if colormap is None:
+      message = f'That was not a valid colormap name. See: https://matplotlib.org/stable/tutorials/colors/colormaps.html'
       connection.privmsg(event.target, message)
-      logger.info(message)
-      bot.config['colormap'] = colormap
+      return
+    elif colormap in special_colormaps:
+      message = "Changing colormap to a special colormap"
+    elif colormap == "custom":
+      message = 'Changing colormap to a custom colormap'
     else:
-      connection.privmsg(event.target, f'That was not a valid colormap name. See: https://matplotlib.org/stable/tutorials/colors/colormaps.html')
+      message = f'Changing colormap to {colormap}'
+    connection.privmsg(event.target, message)
+    bot.config['colormap'] = colormap
 
   def help_text(self, command_name):
     return f'The !{command_name} command can be used to change the colors ' + \

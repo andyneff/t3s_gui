@@ -10,12 +10,19 @@ import numpy as np
 import cv2
 from matplotlib import cm
 
+
+special_colormaps = ["raw", "multi gamma"]
+
+
 def dra_frame(frame, min=None, max=None):
   frame_min = frame.min()
   frame_max = frame.max()
 
   histogram, bin_edges = np.histogram(frame, bins=range(frame_min, frame_max+2))
   cdf = np.cumsum(histogram)
+
+  image_equalized = np.interp(frame, bin_edges[:-1], cdf/cdf[-1])
+  image_equalized = frame_min + (frame_max - frame_min) * image_equalized
 
   if min is not None:
     dra_min = np.clip(min, 0, 1) * frame.size
@@ -38,7 +45,7 @@ def dra_frame(frame, min=None, max=None):
   else:
     dra_max = frame_max
 
-  return (dra_min, dra_max)
+  return (dra_min, dra_max, image_equalized)
 
 class T3sCamera:
   def __init__(self, data={}, camera_index=0, capture_mode=0x8004):
@@ -62,7 +69,7 @@ class T3sCamera:
   def camera_capture(self):
 
     # cap.read()
-    with pyvirtualcam.Camera(width=384, height=288, fps=25) as cam:
+    with pyvirtualcam.Camera(width=384, height=288, fps=25, print_fps=True) as cam:
       logger.debug(f'Using virtual camera: {cam.device}')
       frame = np.zeros((cam.height, cam.width, 3), np.uint8)  # RGB
 
@@ -73,11 +80,15 @@ class T3sCamera:
           frame = self.grab_frame()
           self.last_frame = frame # Save copy for async calcs
           if self.data['colormap'] == 'raw':
+            np.save('frame.npy', frame)
+            frame = np.stack((frame%256, frame/256, np.zeros(frame.shape)), axis=2).astype(np.uint8)
+            # frame = frame.repeat(3, axis=1).repeat(3, axis=0)
+          elif self.data['colormap'] == 'multi gamma':
             frame = np.stack((frame%256, frame/256, np.zeros(frame.shape)), axis=2).astype(np.uint8)
           else:
             use_percent = self.data['clip_min_percent'] or self.data['clip_max_percent']
             if use_percent:
-              dra_min, dra_max = dra_frame(frame,
+              dra_min, dra_max, frame_equal = dra_frame(frame,
                 self.data['clip_min'] if self.data['clip_min_percent'] else None,
                 self.data['clip_max'] if self.data['clip_max_percent'] else None)
 
@@ -97,10 +108,15 @@ class T3sCamera:
             self.last_frame_max = frame_max
 
             # Sketchy auto-exposure
-            frame = frame.astype(np.float32)
+            if self.data['histogram_equalization']:
+              frame = frame_equal
+            else:
+              frame = frame.astype(np.float32)
+
             frame -= frame_min
             frame /= (frame_max-frame_min)
             frame = np.clip(frame, 0, 1)
+
             if self.data['gamma'] != 1:
               frame = frame ** (1/self.data['gamma'])
 

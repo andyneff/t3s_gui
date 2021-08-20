@@ -10,6 +10,10 @@ import matplotlib.cm as cm
 from matplotlib.colors import LinearSegmentedColormap
 import irc.bot
 
+from t3s import special_colormaps
+
+colormaps = plt.colormaps()
+
 
 class Command:
   def __init__(self):
@@ -69,10 +73,6 @@ class HelpCommand(Command):
   def help_text(self, command_name):
     return f"Usage: !{command_name} <command>, to get more information " + \
            f"about a specific command. Try: \"!{command_name} cmap\""
-
-
-colormaps = plt.colormaps()
-special_colormaps = ["raw", "multi gamma"]
 
 
 class ColormapCommand(Command):

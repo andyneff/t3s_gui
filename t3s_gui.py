@@ -12,8 +12,9 @@ logger = logging.getLogger(__name__)
 
 import matplotlib.pyplot as plt
 
-from t3s import T3sCamera
-from twitch import IrcBot, ColormapCommand, special_colormaps
+from t3s import T3sCamera, special_colormaps
+from twitch import IrcBot, ColormapCommand
+
 
 class T3sApp(tk.Tk):
   def __init__(self):
@@ -36,6 +37,7 @@ class T3sApp(tk.Tk):
     self.clip_max = tk.DoubleVar()
     self.clip_max_percent = tk.BooleanVar()
     self.gamma = tk.DoubleVar()
+    self.histogram_equalization = tk.BooleanVar()
     self.irc_channel = tk.StringVar()
     self.irc_username = tk.StringVar()
     self.irc_oauth = tk.StringVar()
@@ -45,6 +47,7 @@ class T3sApp(tk.Tk):
     self.clip_min.trace_add('write', self.update_clip_min)
     self.clip_max.trace_add('write', self.update_clip_max)
     self.gamma.trace_add('write', self.update_gamma)
+    self.histogram_equalization.trace_add('write', self.update_gamma)
     self.irc_channel.trace_add('write', self.update_irc)
     self.irc_username.trace_add('write', self.update_irc)
     self.irc_oauth.trace_add('write', self.update_irc)
@@ -96,6 +99,10 @@ class T3sApp(tk.Tk):
 
     self.gamma_entry = tk.ttk.Entry(frame, width=10, textvariable=self.gamma)
     self.gamma_entry.pack(side='left')
+
+    self.histogram_equalization_widget = tk.ttk.Checkbutton(frame, text='eq',
+        var=self.histogram_equalization, command=self.update_gamma)
+    self.histogram_equalization_widget.pack(side='left')
 
     frame = tk.ttk.Frame(self)
     frame.pack()
@@ -155,6 +162,7 @@ class T3sApp(tk.Tk):
 
   def update_gamma(self, var=None, idx=None, mode=None):
     self.data['gamma'] = self.gamma.get()
+    self.data['histogram_equalization'] = self.histogram_equalization.get()
 
   def update_colormap(self, var=None, idx=None, mode=None):
     colormap = self.colormap.get()
@@ -250,6 +258,7 @@ class T3sApp(tk.Tk):
     self.clip_max.set(options.get('clip_max', 0.04))
     self.clip_max_percent.set(options.get('clip_max_percent', True))
     self.gamma.set(options.get('gamma', 2.2))
+    self.histogram_equalization.set(options.get('histogram_equalization', False))
 
     self.irc_channel.set(options.get('irc_channel', ''))
     self.irc_username.set(options.get('irc_username', ''))
